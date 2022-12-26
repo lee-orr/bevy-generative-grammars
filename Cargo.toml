@@ -38,6 +38,10 @@ name = "bevy_generative_grammars"
 path = "src/lib.rs"
 
 [[bench]]
-name = "entity_spawning"
-path = "benches/entity_spawning.rs"
+name = "tracery_stateful_generator"
+path = "benches/tracery_stateful_generator.rs"
+harness = false
+[[bench]]
+name = "tracery_stateless_generator"
+path = "benches/tracery_stateless_generator.rs"
 harness = false
