@@ -20,7 +20,7 @@ fn spawn_entities(criterion: &mut Criterion) {
             bencher.iter(|| {
                 let mut commands = Commands::new(&mut command_queue, &world);
                 for _ in 0..entity_count {
-                    commands.spawn();
+                    //commands.spawn();
                 }
                 command_queue.apply(&mut world);
             });

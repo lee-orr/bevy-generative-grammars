@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use template_lib::HelloWorldPlugin;
+use bevy_generative_grammars::HelloWorldPlugin;
 
 fn main() {
     App::new().add_plugin(HelloWorldPlugin).run();

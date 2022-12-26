@@ -1,6 +1,6 @@
 [book]
-authors = ["Alice Cecile"]
+authors = ["Lee-Orr"]
 language = "en"
 multilingual = false
 src = "docs/src"
-title = "TEMPLATE"
+title = "Bevy Generative Grammars"

@@ -6,7 +6,7 @@
 ///
 /// # Examples
 /// ```
-/// # use template_lib::utils::returns_true;
+/// # use bevy_generative_grammars::utils::returns_true;
 /// assert!(returns_true());
 /// ```
 pub fn returns_true() -> bool {

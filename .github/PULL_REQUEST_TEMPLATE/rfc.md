@@ -8,7 +8,7 @@ assignees: ''
 
 RFCs are used to collaboratively refine particularly complex designs in a scalable fashion before work begins.
 
-For *Leafwing Studios,* the RFC process is pretty straightforward:
+For *Lee-Orr,* the RFC process is pretty straightforward:
 
 1. Copy the `docs/src/rfc/archived/000-rfc-template.md` file into a new file in the `active` subfolder.
 2. Choose a descriptive feature name and the next available RFC number, and update the template and file name.
