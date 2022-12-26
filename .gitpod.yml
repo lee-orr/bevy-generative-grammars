@@ -1,6 +1,6 @@
 
 tasks:
-  - init: cargo build
+  - init: sudo apt install libvulkan-dev && rustup component add rustfmt && rustup component add clippy
     command: cargo watch -x test
 
 vscode:

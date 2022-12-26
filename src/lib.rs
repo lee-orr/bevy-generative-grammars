@@ -5,7 +5,7 @@
 
 use bevy::prelude::*;
 
-pub mod utils;
+mod generator;
 
 /// A plugin
 pub struct HelloWorldPlugin;
