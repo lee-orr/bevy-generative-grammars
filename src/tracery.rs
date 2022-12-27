@@ -1,16 +1,66 @@
+#[cfg(feature = "asset")]
+/// This module provides an asset loader for tracery grammars, allowing them to be used as assets as well
+pub mod tracery_asset;
+
+#[cfg(feature = "serde")]
+pub use self::deserialize::*;
 use crate::generator::*;
+#[cfg(feature = "bevy")]
 use bevy::{
     prelude::{Component, Resource},
     utils::HashMap,
 };
+#[cfg(feature = "serde")]
+use serde::Serialize;
+#[cfg(not(feature = "bevy"))]
+use std::collections::HashMap;
 
-#[derive(Debug, Clone, Resource, Component)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "bevy", derive(Component, Resource))]
+#[cfg_attr(feature = "serde", derive(Serialize))]
+#[cfg_attr(feature = "asset", derive(bevy::reflect::TypeUuid))]
+#[cfg_attr(feature = "asset", uuid = "40183015-2c4e-44d0-91ea-8028d45af39d")]
 /// This is a grammar that handles rules provided in a tracery syntax.
 /// See - <https://github.com/galaxykate/tracery> for more info on Tracery.
 pub struct TraceryGrammar {
     rules: HashMap<String, Vec<String>>,
     keys: Vec<String>,
     starting_point: String,
+}
+
+#[cfg(feature = "serde")]
+mod deserialize {
+    use super::*;
+    use serde::{de::Visitor, Deserialize};
+
+    #[derive(Deserialize)]
+    struct TraceryGrammarContent {
+        rules: HashMap<String, Vec<String>>,
+        starting_point: Option<String>,
+    }
+
+    impl<'de> Deserialize<'de> for TraceryGrammar {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            match TraceryGrammarContent::deserialize(deserializer) {
+                Ok(TraceryGrammarContent {
+                    rules,
+                    starting_point,
+                }) => {
+                    let keys = rules.keys().map(|v| v.clone()).collect();
+                    let starting_point = starting_point.unwrap_or("origin".to_string());
+                    Ok(TraceryGrammar {
+                        rules,
+                        keys,
+                        starting_point,
+                    })
+                }
+                Err(err) => Err(err),
+            }
+        }
+    }
 }
 
 impl TraceryGrammar {
@@ -92,45 +142,58 @@ const MAX_DEPTH: usize = 50usize;
 
 impl Generator<String, String, TraceryGrammar, String> for StringGenerator {
     fn generate<R: FnMut(usize) -> usize>(grammar: &TraceryGrammar, rng: &mut R) -> Option<String> {
-        let initial = grammar.select_from_rule(grammar.default_starting_point(), rng);
+        Self::generate_at(&grammar.default_starting_point().clone(), grammar, rng)
+    }
+
+    fn generate_at<R: FnMut(usize) -> usize>(
+        key: &String,
+        grammar: &TraceryGrammar,
+        rng: &mut R,
+    ) -> Option<String> {
+        let initial = grammar.select_from_rule(key, rng);
         if let Some(initial) = initial {
-            let mut result = initial.clone();
-            let mut depth = 0;
-            while let (true, results) = grammar.apply_token_stream(&[&result], rng) {
-                result = results
-                    .iter()
-                    .filter_map(|v| v.as_ref())
-                    .fold("".to_string(), |a, v| format!("{a}{v}"));
-                depth += 1;
-                if depth >= MAX_DEPTH {
-                    break;
-                }
-            }
-            Some(result)
+            Some(Self::expand_from(initial, grammar, rng))
         } else {
             None
         }
     }
 
-    fn generate_at<R: FnMut(usize) -> usize>(
-        _key: &String,
-        _grammar: &TraceryGrammar,
-        _rng: &mut R,
-    ) -> Option<String> {
-        todo!()
-    }
-
     fn expand_from<R: FnMut(usize) -> usize>(
-        _initial: &String,
-        _grammar: &TraceryGrammar,
-        _rng: &mut R,
-    ) -> Option<String> {
-        todo!()
+        initial: &String,
+        grammar: &TraceryGrammar,
+        rng: &mut R,
+    ) -> String {
+        let mut queue = vec![initial.clone()];
+        let mut depth = 0;
+        let mut result = initial.clone();
+        while let Some(current) = queue.pop() {
+            result = current;
+            let ready = match grammar.apply_token_stream(&[&result], rng) {
+                (true, results) => {
+                    result = results
+                        .iter()
+                        .filter_map(|v| v.as_ref())
+                        .fold("".to_string(), |a, v| format!("{a}{v}"));
+                    false
+                }
+                _ => true,
+            };
+
+            depth += 1;
+            if depth >= MAX_DEPTH {
+                break;
+            }
+            if !ready {
+                queue.push(result.clone());
+            }
+        }
+        result
     }
 }
 
 /// This is a stateful string generator based on the tracery grammar. Note that since it is stateful, it does support variables.
-#[derive(Debug, Clone, Resource, Component)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "bevy", derive(Component, Resource))]
 pub struct StatefulStringGenerator(TraceryGrammar);
 
 impl StatefulStringGenerator {
@@ -184,8 +247,16 @@ impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStrin
 
             if !rules_to_apply.is_empty() {
                 queue.push((target, result.clone()));
-                for (rule, value) in rules_to_apply.iter() {
-                    queue.push((Some(rule.clone()), value.clone()));
+                for (rule_key, value) in rules_to_apply.iter() {
+                    match value {
+                        MetaRuleProcessingResult::ProcessImmediately(stream) => {
+                            queue.push((Some(rule_key.clone()), stream.clone()))
+                        }
+                        MetaRuleProcessingResult::ProcessWhenUsed(rule_value) => {
+                            self.0
+                                .set_additional_rules(rule_key.clone(), &[rule_value.to_string()]);
+                        }
+                    };
                 }
                 continue;
             }
@@ -230,19 +301,31 @@ impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStrin
         &mut self,
         result: &String,
         _rng: &mut R,
-    ) -> (String, Vec<(String, String)>) {
-        let mut inside = false;
+    ) -> (
+        String,
+        Vec<(String, MetaRuleProcessingResult<String, String>)>,
+    ) {
         let mut new_rules = vec![];
+        let mut inside = false;
         let result = result
             .split('[')
             .filter_map(|v| {
                 if inside {
-                    inside = false;
                     let mut split = v.split(']');
                     if let Some(inner) = split.next() {
-                        let mut split = inner.split(':');
+                        let mut split = inner.split_inclusive(&[':', '|']);
                         if let (Some(key), Some(value)) = (split.next(), split.next()) {
-                            new_rules.push((key.to_string(), value.to_string()));
+                            if key.ends_with(":") {
+                                new_rules.push((
+                                    key[0..key.len() - 1].to_string(),
+                                    MetaRuleProcessingResult::ProcessImmediately(value.to_string()),
+                                ));
+                            } else {
+                                new_rules.push((
+                                    key[0..key.len() - 1].to_string(),
+                                    MetaRuleProcessingResult::ProcessWhenUsed(value.to_string()),
+                                ));
+                            }
                         }
                     } else {
                         return None;
@@ -354,5 +437,60 @@ mod tests {
         );
         let selection = StatefulStringGenerator(rule).generate(&mut |_| 1);
         assert_eq!(selection.unwrap(), "Hi What is going on?");
+    }
+
+    const RULES: &[(&str, &[&str])] = &[
+    (
+        "origin",
+        &["[hero:#creature#][obstacle:#noun#]#intro# there was a #hero# that #encountered# #article##obstacle#."],
+    ),
+    (   "next",
+        &[
+            "Then, the #hero# decided to #action# #definite# #obstacle#.",
+            "Our adventerous #hero# was ready to #action# #definite# #obstacle#."
+        ]
+    ),
+    (   "finally",
+        &[
+            "And so, despite #finale# - our #hero# made it back home.",
+            "And so - after #finale# - the lonely #hero# had proven their worth."
+        ]
+    ),
+    (
+        "intro",
+        &[
+            "once upon a time",
+            "many years ago",
+            "a long time ago",
+            "in a far away land",
+        ],
+    ),
+    ("creature", &["ant", "rabbit", "giraffe", "lion"]),
+    ("encountered", &["ran into", "found", "saw"]),
+    ("move", &["cross[finale|#went#]","circle[finale|#went#]","explore[finale|#went#]"]),
+    ("fight", &["avoid[finale|#went#]", "fight[finale|#fought#]", "challange[finale|#fought#]"]),
+    ("went", &["a long long journey", "a challanging path"]),
+    ("fought", &["a challanging encounter", "a very close call"]),
+    ("noun", &["[article:a][definite:the][action|#move#]river", "[article:a][definite:the][action|#move#]mountain", "[article:some][definite:them][action|#fight#]monsters"]),
+];
+
+    #[test]
+    pub fn stateful_generator_works_with_complex_cases() {
+        let mut generator = StatefulStringGenerator::new(RULES, None);
+        let selection = generator.generate(&mut |_| 1);
+        assert_eq!(
+            selection.unwrap(),
+            "many years ago there was a rabbit that found amountain."
+        );
+        let next = generator.generate_at(&"next".to_string(), &mut |_| 1);
+        assert_eq!(
+            next.unwrap(),
+            "Our adventerous rabbit was ready to circle the mountain."
+        );
+        let finally = generator.generate_at(&"finally".to_string(), &mut |_| 1);
+        assert_eq!(
+            finally.unwrap(),
+            "And so - after a challanging path - the lonely rabbit had proven their worth."
+        );
     }
 }

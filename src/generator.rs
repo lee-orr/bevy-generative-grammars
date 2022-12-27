@@ -93,7 +93,15 @@ pub trait Generator<
         initial: &StreamType,
         grammar: &GrammarType,
         rng: &mut R,
-    ) -> Option<StreamType>;
+    ) -> StreamType;
+}
+
+/// This enum helps handling comples meta-commands within a stream.
+pub enum MetaRuleProcessingResult<GrammarResultType, StreamType> {
+    /// This will immediately process the result of the command, so the processed result is consistent when the new rule is used
+    ProcessImmediately(StreamType),
+    /// This will store the result directly in the ruleset, and process it only when called - allowing for multiple possible results
+    ProcessWhenUsed(GrammarResultType),
 }
 
 /// This trait represents a stateful generator. Here the generator owns the grammar, allowing it to make adjustments as needed.
@@ -129,9 +137,18 @@ pub trait StatefulGenerator<
     ) -> StreamType;
 
     /// This function processes a stream, and determines which rules require updating.
+    /// The result is a tuple, containing the following:
+    /// - A version of the stream without the meta commands (that update the ruleset)
+    /// - A vec of (RuleKeyType, MetaRuleProcessingResult)
     fn grab_rules_from_result<R: FnMut(usize) -> usize>(
         &mut self,
         result: &StreamType,
         rng: &mut R,
-    ) -> (StreamType, Vec<(RuleKeyType, StreamType)>);
+    ) -> (
+        StreamType,
+        Vec<(
+            RuleKeyType,
+            MetaRuleProcessingResult<RuleKeyType, StreamType>,
+        )>,
+    );
 }

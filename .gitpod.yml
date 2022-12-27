@@ -6,8 +6,6 @@ tasks:
 vscode:
   extensions:
     - serayuzgur.crates
-    - Swellaby.vscode-rust-test-adapter
     - rust-lang.rust-analyzer
-    - hbenl.vscode-test-explorer
     - bungcip.better-toml
     - vadimcn.vscode-lldb

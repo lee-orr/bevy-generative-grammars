@@ -12,14 +12,57 @@ keywords = ["bevy"]
 exclude = ["assets/**/*", "tools/**/*", ".github/**/*"]
 resolver = "2"
 
-[profile.dev]
-opt-level = 3
-
 [workspace]
 members = ["./", "tools/ci"]
 
+[features]
+default = [
+    "bevy"
+]
+
+bevy = [
+    "dep:bevy",
+]
+
+serde = [
+    "dep:serde"
+]
+
+asset = [
+    "bevy",
+    "serde",
+    "dep:bevy_common_assets"
+]
+
+json = [
+    "asset",
+    "bevy_common_assets?/json"
+]
+
+msgpack = [
+    "asset",
+    "bevy_common_assets?/msgpack"
+]
+
+ron = [
+    "asset",
+    "bevy_common_assets?/ron"
+]
+
+toml = [
+    "asset",
+    "bevy_common_assets?/toml"
+]
+
+yaml = [
+    "asset",
+    "bevy_common_assets?/yaml"
+]
+
 [dependencies]
-bevy = { version = "0.9", default-features = false}
+bevy = { version = "0.9", default-features = false, optional = true }
+bevy_common_assets = { version = "0.4", optional = true }
+serde = { version = "*", optional = true }
 
 [patch.crates-io]
 # We can override the bevy version with remote or local versions
@@ -31,6 +74,7 @@ bevy = { version = "0.9", default-features = false}
 criterion = "0.4"
 # We can use a different feature set of Bevy for our library vs our examples and tests
 bevy = { version = "0.9", default-features = false}
+rand = "*"
 
 
 [lib]
@@ -45,3 +89,28 @@ harness = false
 name = "tracery_stateless_generator"
 path = "benches/tracery_stateless_generator.rs"
 harness = false
+
+[profile.test]
+default = [
+    "bevy",
+    "serde",
+    "asset",
+    "json",
+    "msgpack",
+    "ron",
+    "toml",
+    "yaml"
+]
+
+[profile.dev]
+opt-level = 3
+default = [
+    "bevy",
+    "serde",
+    "asset",
+    "json",
+    "msgpack",
+    "ron",
+    "toml",
+    "yaml"
+]
