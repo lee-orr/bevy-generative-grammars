@@ -24,6 +24,7 @@ use std::collections::HashMap;
 /// See - <https://github.com/galaxykate/tracery> for more info on Tracery.
 pub struct TraceryGrammar {
     rules: HashMap<String, Vec<String>>,
+    #[cfg_attr(feature = "serde", serde(skip_serializing))]
     keys: Vec<String>,
     starting_point: String,
 }
@@ -65,7 +66,7 @@ mod deserialize {
 
 impl TraceryGrammar {
     /// This provides a new tracery grammar.
-    /// You provide a set of rules as (Key, &[Values]) and optionally a starting point.
+    /// You provide a set of rules as `(Key, &[Values])` and optionally a starting point.
     /// If no starting point is provided, we fall back on "origin"
     pub fn new<T: Clone + Into<String>>(rules: &[(T, &[T])], starting_point: Option<T>) -> Self {
         Self {
@@ -194,7 +195,7 @@ pub struct StatefulStringGenerator(TraceryGrammar);
 
 impl StatefulStringGenerator {
     /// This provides a new stateful generating using tracery grammar.
-    /// You provide a set of rules as (Key, &[Values]) and optionally a starting point.
+    /// You provide a set of rules as (Key, &[Values])` and optionally a starting point.
     /// If no starting point is provided, we fall back on "origin"
     pub fn new<T: Clone + Into<String>>(rules: &[(T, &[T])], starting_point: Option<T>) -> Self {
         let grammar = TraceryGrammar::new(rules, starting_point);

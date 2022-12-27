@@ -1,8 +1,5 @@
 # Summary
+[Introduction](Intro.md)
 
-This library provides the capacity to use generative grammars within bevy.
-
-At the moment, it provides two things:
-- an set of traits that an be used to build your own grammars (in `bevy_generative_grammars::generator::*`)
-- an implementation of the [tracery generative grammar](http://www.crystalcodepalace.com/traceryTut.html) - in both a stateful generator and a stateless one (in `bevy_generative_grammars::tracery::*`). These are able to act as bevy resources or components, and use the bevy hashmap implementation internally.
-
+- [Introduction to Tracery](Tracery_intro.md)
+- [Tracery Asset Format](Tracery_format.md)
