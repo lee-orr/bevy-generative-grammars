@@ -71,7 +71,9 @@ impl Plugin for TraceryAssetPlugin {
         }
         #[cfg(feature = "msgpack")]
         if let Some(ext) = self.msgpack {
-            app.add_plugin(bevy_common_assets::msgpack::MsgPackAssetPlugin::<TraceryGrammar>::new(ext));
+            app.add_plugin(bevy_common_assets::msgpack::MsgPackAssetPlugin::<
+                TraceryGrammar,
+            >::new(ext));
         }
         #[cfg(feature = "toml")]
         if let Some(ext) = self.toml {

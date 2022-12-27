@@ -31,7 +31,7 @@ pub struct TraceryGrammar {
 #[cfg(feature = "serde")]
 mod deserialize {
     use super::*;
-    use serde::{Deserialize};
+    use serde::Deserialize;
 
     #[derive(Deserialize)]
     struct TraceryGrammarContent {
