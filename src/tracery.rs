@@ -127,6 +127,10 @@ impl Grammar<String, String> for TraceryGrammar {
             .collect();
         (has_replacements, result)
     }
+
+    fn rule_to_default_result(&self, rule: &String) -> String {
+        format!("#{rule}#")
+    }
 }
 
 impl StatefulGrammar<String, String> for TraceryGrammar {
@@ -163,25 +167,27 @@ impl Generator<String, String, TraceryGrammar, String> for StringGenerator {
         let mut queue = vec![initial.clone()];
         let mut depth = 0;
         let mut result = initial.clone();
-        while let Some(current) = queue.pop() {
-            result = current;
-            let ready = match grammar.apply_token_stream(&[&result], rng) {
+        while let Some(mut current) = queue.pop() {
+            let ready = match grammar.apply_token_stream(&[&current], rng) {
                 (true, results) => {
-                    result = results
-                        .iter()
-                        .filter_map(|v| v.as_ref())
-                        .fold("".to_string(), |a, v| format!("{a}{v}"));
+                    current = results.join("");
                     false
                 }
                 _ => true,
             };
 
+            if result == current {
+                break;
+            }
+
+            if !ready {
+                queue.push(current.clone());
+            }
+            result = current;
+
             depth += 1;
             if depth >= MAX_DEPTH {
                 break;
-            }
-            if !ready {
-                queue.push(result.clone());
             }
         }
         result
@@ -240,10 +246,11 @@ impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStrin
         let mut result = initial.clone();
         while let Some((target, current)) = queue.pop() {
             let (initial, rules_to_apply) = self.grab_rules_from_result(&current, &mut rng);
-            result = initial.clone();
+
+            let mut next_result = initial.clone();
 
             if !rules_to_apply.is_empty() {
-                queue.push((target, result.clone()));
+                queue.push((target, next_result.clone()));
                 for (rule_key, value) in rules_to_apply.iter() {
                     match value {
                         MetaRuleProcessingResult::ProcessImmediately(stream) => {
@@ -258,25 +265,28 @@ impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStrin
                 continue;
             }
 
-            let ready = match self.get_grammar().apply_token_stream(&[&result], rng) {
+            let mut ready = match self.get_grammar().apply_token_stream(&[&next_result], rng) {
                 (true, results) => {
-                    result = results
-                        .iter()
-                        .filter_map(|v| v.as_ref())
-                        .fold("".to_string(), |a, v| format!("{a}{v}"));
+                    next_result = results.join("");
                     false
                 }
                 _ => true,
             };
 
+            if !ready && next_result == result {
+                ready = true;
+            }
+
+            if !ready {
+                queue.push((target, next_result.clone()));
+            } else if let Some(target) = target {
+                self.0.set_additional_rules(target, &[next_result.clone()]);
+            }
+            result = next_result;
+
             depth += 1;
             if depth >= MAX_DEPTH {
                 break;
-            }
-            if !ready {
-                queue.push((target, result.clone()));
-            } else if let Some(target) = target {
-                self.0.set_additional_rules(target, &[result.clone()]);
             }
         }
         result
@@ -426,7 +436,8 @@ mod tests {
     pub fn stateful_generator_can_set_value_and_use_it_later() {
         let rule = TraceryGrammar::new(
             &[
-                ("default", &["One", "[val:#Two#]Hi #val#"]),
+                ("default", &["One", "#set#Hi #val#"]),
+                ("set", &["[val:#Two#]"]),
                 ("Two", &["Three", "#Four#"]),
                 ("Four", &["What is going on?"]),
             ],

@@ -40,21 +40,27 @@ pub trait Grammar<RuleKeyType, ResultType: Clone> {
         }
     }
 
+    /// Converts a rule key to a default result, in case no matching rule is found in the grammar.
+    fn rule_to_default_result(&self, rule: &RuleKeyType) -> ResultType;
+
     /// Takes a token stream, checks it for replacements, and then applies them by using select from rule.
     /// It returns a bool indicating whether it had to make any replacements this round, and a vec of the results.
     fn apply_token_stream<R: FnMut(usize) -> usize>(
         &self,
         stream: &[&ResultType],
         mut rng: &mut R,
-    ) -> (bool, Vec<Option<ResultType>>) {
+    ) -> (bool, Vec<ResultType>) {
         let (is_done, values) = self.check_token_stream(stream);
         (
             is_done,
             values
                 .iter()
                 .map(|v| match v {
-                    Replacable::Ready(v) => Some(v.clone()),
-                    Replacable::Replace(v) => self.select_from_rule(v, &mut rng).cloned(),
+                    Replacable::Ready(v) => v.clone(),
+                    Replacable::Replace(v) => self
+                        .select_from_rule(v, &mut rng)
+                        .cloned()
+                        .unwrap_or(self.rule_to_default_result(v)),
                 })
                 .collect(),
         )

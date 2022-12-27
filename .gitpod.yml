@@ -1,7 +1,6 @@
 
 tasks:
   - init: sudo apt install libvulkan-dev && rustup component add rustfmt && rustup component add clippy
-    command: cargo watch -x test
 
 vscode:
   extensions:
