@@ -195,7 +195,7 @@ pub struct StatefulStringGenerator(TraceryGrammar);
 
 impl StatefulStringGenerator {
     /// This provides a new stateful generating using tracery grammar.
-    /// You provide a set of rules as (Key, &[Values])` and optionally a starting point.
+    /// You provide a set of rules as `(Key, &[Values])` and optionally a starting point.
     /// If no starting point is provided, we fall back on "origin"
     pub fn new<T: Clone + Into<String>>(rules: &[(T, &[T])], starting_point: Option<T>) -> Self {
         let grammar = TraceryGrammar::new(rules, starting_point);
