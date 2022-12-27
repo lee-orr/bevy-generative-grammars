@@ -438,13 +438,18 @@ mod tests {
             &[
                 ("default", &["One", "#set#Hi #val#"]),
                 ("set", &["[val:#Two#]"]),
+                ("set_2", &["[val:#Two#]"]),
                 ("Two", &["Three", "#Four#"]),
                 ("Four", &["What is going on?"]),
+                ("Five", &["Hey there"]),
             ],
             Some("default"),
         );
-        let selection = StatefulStringGenerator(rule).generate(&mut |_| 1);
+        let mut stateful_string_generator = StatefulStringGenerator(rule);
+        let selection = stateful_string_generator.generate(&mut |_| 1);
         assert_eq!(selection.unwrap(), "Hi What is going on?");
+        let selection = stateful_string_generator.expand_from(&"#set_2#Oh #val#".to_string(),&mut |_| 1);
+        assert_eq!(selection, "Oh Hey there");
     }
 
     const RULES: &[(&str, &[&str])] = &[
