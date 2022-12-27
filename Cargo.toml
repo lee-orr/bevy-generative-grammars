@@ -17,7 +17,6 @@ members = ["./", "tools/ci"]
 
 [features]
 default = [
-    "bevy"
 ]
 
 bevy = [
@@ -89,28 +88,3 @@ harness = false
 name = "tracery_stateless_generator"
 path = "benches/tracery_stateless_generator.rs"
 harness = false
-
-[profile.test]
-default = [
-    "bevy",
-    "serde",
-    "asset",
-    "json",
-    "msgpack",
-    "ron",
-    "toml",
-    "yaml"
-]
-
-[profile.dev]
-opt-level = 3
-default = [
-    "bevy",
-    "serde",
-    "asset",
-    "json",
-    "msgpack",
-    "ron",
-    "toml",
-    "yaml"
-]

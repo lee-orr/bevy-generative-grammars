@@ -31,7 +31,7 @@ pub struct TraceryGrammar {
 #[cfg(feature = "serde")]
 mod deserialize {
     use super::*;
-    use serde::{de::Visitor, Deserialize};
+    use serde::{Deserialize};
 
     #[derive(Deserialize)]
     struct TraceryGrammarContent {
@@ -49,7 +49,7 @@ mod deserialize {
                     rules,
                     starting_point,
                 }) => {
-                    let keys = rules.keys().map(|v| v.clone()).collect();
+                    let keys = rules.keys().cloned().collect();
                     let starting_point = starting_point.unwrap_or("origin".to_string());
                     Ok(TraceryGrammar {
                         rules,
@@ -151,11 +151,7 @@ impl Generator<String, String, TraceryGrammar, String> for StringGenerator {
         rng: &mut R,
     ) -> Option<String> {
         let initial = grammar.select_from_rule(key, rng);
-        if let Some(initial) = initial {
-            Some(Self::expand_from(initial, grammar, rng))
-        } else {
-            None
-        }
+        initial.map(|initial| Self::expand_from(initial, grammar, rng))
     }
 
     fn expand_from<R: FnMut(usize) -> usize>(
@@ -315,7 +311,7 @@ impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStrin
                     if let Some(inner) = split.next() {
                         let mut split = inner.split_inclusive(&[':', '|']);
                         if let (Some(key), Some(value)) = (split.next(), split.next()) {
-                            if key.ends_with(":") {
+                            if key.ends_with(':') {
                                 new_rules.push((
                                     key[0..key.len() - 1].to_string(),
                                     MetaRuleProcessingResult::ProcessImmediately(value.to_string()),

@@ -2,7 +2,7 @@ use std::io::stdin;
 
 use bevy_generative_grammars::{
     generator::*,
-    tracery::{StatefulStringGenerator, StringGenerator, TraceryGrammar},
+    tracery::{StatefulStringGenerator, TraceryGrammar},
 };
 use rand::prelude::*;
 

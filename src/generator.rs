@@ -139,7 +139,7 @@ pub trait StatefulGenerator<
     /// This function processes a stream, and determines which rules require updating.
     /// The result is a tuple, containing the following:
     /// - A version of the stream without the meta commands (that update the ruleset)
-    /// - A vec of (RuleKeyType, MetaRuleProcessingResult)
+    /// - A vec of (`RuleKeyType`, `MetaRuleProcessingResult`)
     fn grab_rules_from_result<R: FnMut(usize) -> usize>(
         &mut self,
         result: &StreamType,
