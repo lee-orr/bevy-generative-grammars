@@ -17,6 +17,7 @@ members = ["./", "tools/ci"]
 
 [features]
 default = [
+    "json"
 ]
 
 bevy = [
@@ -84,7 +85,18 @@ path = "src/lib.rs"
 name = "tracery_stateful_generator"
 path = "benches/tracery_stateful_generator.rs"
 harness = false
+
 [[bench]]
 name = "tracery_stateless_generator"
 path = "benches/tracery_stateless_generator.rs"
 harness = false
+
+[[example]]
+name = "bevy_simple"
+path = "examples/bevy_simple.rs"
+required-features = ["bevy"]
+
+[[example]]
+name = "bevy_asset"
+path = "examples/bevy_asset.rs"
+required-features = ["json"]

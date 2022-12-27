@@ -1,0 +1,56 @@
+{
+    "starting_pont": "origin",
+    "rules": {
+        "origin": [
+            "[hero:#creature#][obstacle:#noun#]#intro# there was a #hero# that #encountered# #article# #obstacle#.|next"
+        ],
+        "next": [
+            "Then, the #hero# decided to #action# #definite# #obstacle#.|finally",
+            "Our adventerous #hero# was ready to #action# #definite# #obstacle#.|finally"
+        ],
+        "finally": [
+            "And so, despite #finale# - our #hero# made it back home.|done",
+            "And so - after #finale# - the lonely #hero# had proven their worth.|done"
+        ],
+        "intro": [
+            "once upon a time",
+            "many years ago",
+            "a long time ago",
+            "in a far away land"
+        ],
+        "creature": [
+            "ant",
+            "rabbit",
+            "giraffe",
+            "lion"
+        ],
+        "encountered": [
+            "ran into",
+            "found",
+            "saw"
+        ],
+        "move": [
+            "cross[finale|#went#]",
+            "circle[finale|#went#]",
+            "explore[finale|#went#]"
+        ],
+        "fight": [
+            "avoid[finale|#went#]",
+            "fight[finale|#fought#]",
+            "challange[finale|#fought#]"
+        ],
+        "went": [
+            "a long long journey",
+            "a challanging path"
+        ],
+        "fought": [
+            "a challanging encounter",
+            "a very close call"
+        ],
+        "noun": [
+            "[article:a][definite:the][action|#move#]river",
+            "[article:a][definite:the][action|#move#]mountain",
+            "[article:some][definite:them][action|#fight#]monsters"
+        ]
+    }
+}
