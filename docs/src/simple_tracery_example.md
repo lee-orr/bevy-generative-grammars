@@ -1,6 +1,7 @@
 # Simple Tracery Example
 
 In this case, we're going to implement an example that processes the following tracery grammar:
+
 ```json
 {
     "origin": ["Hello #name#!", "#name#, you made it!"],
@@ -9,6 +10,7 @@ In this case, we're going to implement an example that processes the following t
 ```
 
 First off, we need to set up the rules - in this case we'll make them a constant:
+
 ```rust
 const RULES: &[(&str, &[&str])] = &[
     (
@@ -51,19 +53,25 @@ fn main() {
 
 Now, what if we just want a name?
 In that case, we can adjust the string generation line from:
+
 ```rust
     match StringGenerator:generate(&grammar, &mut rng) {
 ```
-to 
+
+to:
+
 ```rust
     match StringGenerator:generate_at(&"name".to_string(), &grammar, &mut rng) {
 ```
+
 Which will print out `Jane`
 
 Or - we might want to provide it with some arbitrary content to expand. In this case we'd replace the entire match statement with something like this:
+
 ```rust
     let story = "Agnus greeted me, saying \"#origin#\"".to_string();
     let result = StringGenerator::expand_from(&story, &grammar, &mut rng);
     println!("{result}");
 ```
+
 Notice that using "expand_from" doesn't require an option, since it will always at least return the initial input, if it can't expand it further.

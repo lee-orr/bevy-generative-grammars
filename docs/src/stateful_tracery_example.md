@@ -1,6 +1,7 @@
 # Simple Tracery Example
 
 Now we want to actually remember who we're talking to... so let's adjust our grammar.
+
 ```json
 {
     // all we did was set up a friend variable and start using it instead of name
@@ -12,6 +13,7 @@ Now we want to actually remember who we're talking to... so let's adjust our gra
 ```
 
 And we update our rules.
+
 ```rust
 const RULES: &[(&str, &[&str])] = &[
     (

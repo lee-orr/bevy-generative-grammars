@@ -7,7 +7,8 @@ To do so, add the following to your dependencies in the `Cargo.toml`:
 bevy-generative-grammars = { git = "https://github.com/lee-orr/bevy-generative-grammars", features = ["bevy"]}
 ```
 
-## Available features:
+## Available features
+
 - default - this only provides the basic functionality, and relies on `std::collections::HashMap` internally.
 - bevy - this implements `Resource` and `Component` for grammars & stateful generators, as well as switching to `bevy::utils::HashMap`
 - serde - this provides a serialization/deserialization
@@ -16,4 +17,5 @@ bevy-generative-grammars = { git = "https://github.com/lee-orr/bevy-generative-g
 - ron - provides a RON asset plugin
 - msgpack - provides a MessagePack asset plugin
 - toml - provides a TOML asset plugin
+
 - yaml - provides a YAML asset plugin
