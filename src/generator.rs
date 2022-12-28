@@ -87,7 +87,6 @@ pub trait Grammar<
             let max = len.checked_sub(1).unwrap_or_default();
             let rng = rng.get_number(len);
             let index = max.min(rng);
-            println!("Selecting from - len: {len}, max id: {max}, rng: {rng}, selected: {index}");
             options.get(index)
         } else {
             None
@@ -133,14 +132,12 @@ pub trait Grammar<
         rng: &mut R,
         temporary_grammar: &mut Self,
     ) -> StreamType {
-        println!("Applying Token Stream to {stream:?}");
-
         match self.processing_direction() {
             GrammarProcessingDirection::BreadthFirst => {
                 self.breadth_first_processing(stream, temporary_grammar, rng)
             }
             GrammarProcessingDirection::DepthFirst => {
-                todo!()
+                self.depth_first_processing(stream, temporary_grammar, rng)
             }
         }
     }
@@ -152,11 +149,9 @@ pub trait Grammar<
         temporary_grammar: &mut Self,
         rng: &mut R,
     ) -> StreamType {
-        println!("Breadth First");
         let max_depth = self.max_depth();
         let (skippable, initial) = self.check_token_stream(stream);
         if skippable {
-            println!("Fully skippable");
             return stream.clone();
         }
 
@@ -169,8 +164,6 @@ pub trait Grammar<
         let mut result = stream.clone();
         let mut tmp_result = None;
         while let Some((target, current)) = queue.pop() {
-            println!("**** ITERATION *****");
-            println!("Target: {:?}\nInput:\n{:?}", &target, &current);
             let next = current
                 .into_iter()
                 .filter_map(|token| {
@@ -204,31 +197,21 @@ pub trait Grammar<
                 })
                 .collect::<Vec<_>>();
 
-            println!("Result:\n{:?}", &next);
-
             let next = self.result_to_stream(&next);
 
-            println!("Stream:\n{:?}", &next);
-
             if let Some(target) = &target {
-                println!("got a target");
                 if let Some(tmp) = &tmp_result {
-                    println!("and a temp result");
                     if tmp == &next {
-                        println!("they match");
                         temporary_grammar
                             .set_additional_rules(target.clone(), &self.stream_to_result(&next));
                         tmp_result = None;
                         continue;
                     }
-                    println!("they don't match - carry on");
                 }
                 tmp_result = Some(next.clone());
             } else if result == next {
-                println!("no target - and result = next - ending early");
                 break;
             } else {
-                println!("no target, keep going...");
                 result = next.clone();
             }
 
@@ -237,9 +220,7 @@ pub trait Grammar<
                 break;
             }
 
-            println!("Checking next stream:\n{next:?}");
             let (skippable, next) = self.check_token_stream(&next);
-            println!("Setting up for next stream:\nis skippable: {skippable}\n{next:?}");
             if skippable {
                 if let (Some(target), Some(tmp)) = (&target, tmp_result) {
                     temporary_grammar
@@ -256,56 +237,97 @@ pub trait Grammar<
         result
     }
 
-    // /// Processes a stream depth first, regardless of the settings of the grammar
-    // fn depth_first_processing<R: GrammarRandomNumberGenerator>(&self, stream: &StreamType, temporary_grammar: &mut Self, rng: &mut R) -> StreamType {
-    //     println!("Depth First");
-    //     let MAX_DEPTH = self.max_depth();
-    //     let (skippable, initial) = self.check_token_stream(stream);
-    //     if skippable {
-    //         println!("Fully skippable");
-    //         return stream.clone();
-    //     }
+    /// Processes a stream depth first, regardless of the settings of the grammar
+    fn depth_first_processing<R: GrammarRandomNumberGenerator>(
+        &self,
+        stream: &StreamType,
+        temporary_grammar: &mut Self,
+        rng: &mut R,
+    ) -> StreamType {
+        let max_depth = self.max_depth();
+        let (skippable, initial) = self.check_token_stream(stream);
+        if skippable {
+            return stream.clone();
+        }
 
-    //     let mut queue: Vec<(Option<RuleKeyType>, Vec<Replacable<RuleKeyType, ResultType>>)> = vec![(None, initial)];
-    //     let mut results: Vec<(usize, Vec<ResultType>)> = vec![(0, vec![])];
-    //     let mut result = stream.clone();
-    //     while let Some(stream) = queue.last() {
-    //         let target = &stream.0;
-    //         let current = &stream.1;
-    //         let index = stream.2;
-    //         let mut next_index = index;
+        let mut queue: Vec<(Option<RuleKeyType>, Replacable<RuleKeyType, ResultType>)> =
+            initial.into_iter().map(|v| (None, v)).collect();
+        queue.reverse();
+        let mut results: Vec<(Option<RuleKeyType>, Vec<ResultType>)> = vec![(None, vec![])];
+        let mut depth = 0;
+        while let Some((target, item)) = queue.pop() {
+            if results.len() > 1 {
+                let mut remove_last_result = false;
 
-    //         if let Some(item) = current.get(index) {
-    //             match item {
-    //                 Replacable::Ready(value) => {
-    //                     next_index += 1;
-    //                     stream.3.push(value.clone());
-    //                 },
-    //                 Replacable::Replace(key) => {
-    //                     let result = if let Some(result) = temporary_grammar.select_from_rule(&key, rng) {
-    //                         result.clone()
-    //                     } else if let Some(result) = self.select_from_rule(&key, rng) {
-    //                         result.clone()
-    //                     } else {
-    //                         self.rule_to_default_result(&key)
-    //                     };
-    //                     let result = self.result_to_stream(&[result]);
-    //                     let (_, next) = self.check_token_stream(&result);
-    //                     queue.push((None, next, 0, vec![]));
-    //                 },
-    //                 Replacable::ImmediateMeta(key, result) => {
-    //                     let result = self.result_to_stream(&[result.clone()]);
-    //                     let (_, next) = self.check_token_stream(&result);
-    //                     queue.push((Some(key.clone()), next, 0, vec![]));
-    //                 },
-    //                 Replacable::DelayedMeta(key, value) => {
-    //                     temporary_grammar.set_additional_rules(key.clone(), &[value.clone()]);
-    //                 },
-    //             }
-    //         }
-    //     }
-    //     result
-    // }
+                if let Some(last_result) = results.last() {
+                    if last_result.0 != target {
+                        remove_last_result = true;
+                    }
+                }
+
+                if remove_last_result {
+                    if let Some((Some(target), values)) = results.pop() {
+                        // This two way conversion allows a grammar to potentially collapse multiple values into a single one,
+                        // if that is the desired result.
+                        let stream = self.result_to_stream(&values);
+                        let values = self.stream_to_result(&stream);
+
+                        temporary_grammar.set_additional_rules(target, &values);
+                    }
+                }
+            }
+
+            let mut create_new_result_stream = None;
+
+            match item {
+                Replacable::Ready(value) => {
+                    if let Some(stream) = results.last_mut() {
+                        stream.1.push(value);
+                    } else {
+                    }
+                }
+                Replacable::Replace(key) => {
+                    let result = if let Some(result) = temporary_grammar.select_from_rule(&key, rng)
+                    {
+                        result.clone()
+                    } else if let Some(result) = self.select_from_rule(&key, rng) {
+                        result.clone()
+                    } else {
+                        self.rule_to_default_result(&key)
+                    };
+                    let result = self.result_to_stream(&[result]);
+                    let (_, next) = self.check_token_stream(&result);
+                    for item in next.into_iter() {
+                        queue.push((target.clone(), item));
+                    }
+                }
+                Replacable::ImmediateMeta(key, result) => {
+                    let result = self.result_to_stream(&[result.clone()]);
+                    create_new_result_stream = Some(key.clone());
+                    let (_, next) = self.check_token_stream(&result);
+                    for item in next.into_iter() {
+                        queue.push((Some(key.clone()), item));
+                    }
+                }
+                Replacable::DelayedMeta(key, value) => {
+                    temporary_grammar.set_additional_rules(key.clone(), &[value.clone()]);
+                }
+            }
+
+            if let Some(key) = create_new_result_stream {
+                results.push((Some(key), vec![]));
+            }
+            depth += 1;
+            if depth >= max_depth {
+                break;
+            }
+        }
+        if let Some(result) = results.first() {
+            self.result_to_stream(&result.1)
+        } else {
+            stream.clone()
+        }
+    }
 }
 
 /// This trait represents a stateless generator. You pass the grammar & rng in, and it can provide the resulting stream.

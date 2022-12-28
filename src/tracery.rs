@@ -122,7 +122,6 @@ impl Grammar<String, String, String> for TraceryGrammar {
         let result = stream
             .split('[')
             .flat_map(|v| {
-                println!("Checking for meta in {v}");
                 if inside {
                     has_meta = true;
                     let mut result = vec![];
@@ -152,14 +151,12 @@ impl Grammar<String, String, String> for TraceryGrammar {
                     }
                     result
                 } else {
-                    println!("Marked as raw");
                     inside = true;
                     vec![MetaRuleProcessingResult::Raw(v)]
                 }
             })
             .flat_map(|v| match v {
                 MetaRuleProcessingResult::Raw(v) => {
-                    println!("Checking raw: {v}");
                     let mut ready = true;
                     v.split('#')
                         .filter_map(|v| {
@@ -194,7 +191,7 @@ impl Grammar<String, String, String> for TraceryGrammar {
     }
 
     fn processing_direction(&self) -> GrammarProcessingDirection {
-        GrammarProcessingDirection::BreadthFirst
+        GrammarProcessingDirection::DepthFirst
     }
 
     fn result_to_stream(&self, result: &[String]) -> String {
@@ -416,7 +413,7 @@ mod tests {
             &[
                 ("default", &["One", "#set#Hi #val#"]),
                 ("set", &["[val:#Two#]"]),
-                ("set_2", &["[val:#Two#]"]),
+                ("set_2", &["[val:#Five#]"]),
                 ("Two", &["Three", "#Four#"]),
                 ("Four", &["What is going on?"]),
                 ("Five", &["Hey there"]),
