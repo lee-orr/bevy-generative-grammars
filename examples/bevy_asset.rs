@@ -3,7 +3,7 @@ use bevy_generative_grammars::{
     generator::*,
     tracery::{tracery_asset::TraceryAssetPlugin, StatefulStringGenerator, TraceryGrammar},
 };
-use rand::*;
+use bevy_turborand::rng::Rng;
 
 fn terminal_runner(mut app: App) {
     println!("Press Enter to Progress, or type 'exit' to exit");
@@ -65,17 +65,10 @@ fn progress_story(
     mut handle: ResMut<GrammarHandle>,
     mut query: Query<(Entity, &mut StatefulStringGenerator, &mut NextPrompt)>,
 ) {
-    let mut rng = thread_rng();
-    let mut rng_func = |len| {
-        if len == 0 {
-            0
-        } else {
-            rng.gen_range(0..len)
-        }
-    };
+    let mut rng = TurboRandOwned::new(Rng::new());
 
     for (entity, mut generator, mut next_prompt) in query.iter_mut() {
-        if let Some(generated) = generator.generate_at(&next_prompt.0, &mut rng_func) {
+        if let Some(generated) = generator.generate_at(&next_prompt.0, &mut rng) {
             let mut split = generated.split('|');
             if let Some(generated) = split.next() {
                 println!("{generated}");

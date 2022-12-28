@@ -1,3 +1,13 @@
+#[cfg(feature = "rand")]
+mod grammar_rng_rand;
+#[cfg(feature = "turborand")]
+mod grammar_rng_turborand;
+
+#[cfg(feature = "rand")]
+pub use grammar_rng_rand::*;
+#[cfg(feature = "turborand")]
+pub use grammar_rng_turborand::*;
+
 use std::fmt::Debug;
 
 #[derive(Clone, PartialEq, Debug)]
@@ -296,7 +306,7 @@ pub trait Grammar<
                         self.rule_to_default_result(&key)
                     };
                     let result = self.result_to_stream(&[result]);
-                    let (_,mut next) = self.check_token_stream(&result);
+                    let (_, mut next) = self.check_token_stream(&result);
                     next.reverse();
                     for item in next.into_iter() {
                         queue.push((target.clone(), item));

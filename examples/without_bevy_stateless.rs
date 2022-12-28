@@ -26,15 +26,8 @@ const RULES: &[(&str, &[&str])] = &[
 fn main() {
     let grammar = TraceryGrammar::new(RULES, None);
     println!("Let me generate a story for you:");
-    let mut rng = thread_rng();
-    let mut rng_func = |len| {
-        if len == 0 {
-            0
-        } else {
-            rng.gen_range(0..len)
-        }
-    };
-    let story = StringGenerator::generate(&grammar, &mut rng_func);
+    let mut rand = RandOwned::new(thread_rng());
+    let story = StringGenerator::generate(&grammar, &mut rand);
     match story {
         Some(story) => {
             println!("{story}");

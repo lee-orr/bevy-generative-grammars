@@ -17,7 +17,7 @@ members = ["./", "tools/ci"]
 
 [features]
 default = [
-    "json"
+    "json",
 ]
 
 bevy = [
@@ -59,10 +59,21 @@ yaml = [
     "bevy_common_assets?/yaml"
 ]
 
+rand = [
+    "dep:rand"
+]
+
+turborand = [
+    "bevy",
+    "dep:bevy_turborand"
+]
+
 [dependencies]
 bevy = { version = "0.9", default-features = false, optional = true }
 bevy_common_assets = { version = "0.4", optional = true }
 serde = { version = "*", optional = true }
+rand = { version = "*", optional = true }
+bevy_turborand = { version = "*", optional = true }
 
 [patch.crates-io]
 # We can override the bevy version with remote or local versions
@@ -74,7 +85,6 @@ serde = { version = "*", optional = true }
 criterion = "0.4"
 # We can use a different feature set of Bevy for our library vs our examples and tests
 bevy = { version = "0.9", default-features = false}
-rand = "*"
 
 
 [lib]
@@ -94,9 +104,19 @@ harness = false
 [[example]]
 name = "bevy_simple"
 path = "examples/bevy_simple.rs"
-required-features = ["bevy"]
+required-features = ["bevy", "turborand"]
 
 [[example]]
 name = "bevy_asset"
 path = "examples/bevy_asset.rs"
-required-features = ["json"]
+required-features = ["json", "turborand"]
+
+[[example]]
+name = "without_bevy_stateful"
+path = "examples/without_bevy_stateful.rs"
+required-features = ["rand"]
+
+[[example]]
+name = "without_bevy_stateless"
+path = "examples/without_bevy_stateless.rs"
+required-features = ["rand"]

@@ -44,16 +44,9 @@ const RULES: &[(&str, &[&str])] =  &[
 fn main() {
     let grammar = TraceryGrammar::new(RULES, None);
     println!("Let me generate a story for you:");
-    let mut rng = thread_rng();
-    let mut rng_func = |len| {
-        if len == 0 {
-            0
-        } else {
-            rng.gen_range(0..len)
-        }
-    };
+    let mut rand = RandOwned::new(thread_rng());
     let mut generator = StatefulStringGenerator::from_grammar(grammar);
-    let story = generator.generate(&mut rng_func);
+    let story = generator.generate(&mut rand);
     match story {
         Some(story) => {
             println!("{story}");
@@ -70,8 +63,8 @@ fn main() {
         .expect("Did not enter a correct string");
     if s.to_lowercase().contains('y') {
         let (line_1, line_2) = (
-            generator.generate_at(&"next".to_string(), &mut rng_func),
-            generator.generate_at(&"finally".to_string(), &mut rng_func),
+            generator.generate_at(&"next".to_string(), &mut rand),
+            generator.generate_at(&"finally".to_string(), &mut rand),
         );
         match (line_1, line_2) {
             (Some(line_1), Some(line_2)) => {

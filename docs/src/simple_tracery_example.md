@@ -34,9 +34,7 @@ fn main() {
     // Next, we need to setup our random generation function.
     // Normally, you'll want to use rand or bevy_turborand for this.
     // But we're just going to hard code it, so we have consisten results.
-    let mut rng = |_| {
-        0
-    };
+    let mut rng = 0;
 
     // Now we generate our story - it should print out:
     // "Hello Jane"
@@ -50,6 +48,8 @@ fn main() {
     } 
 }
 ```
+
+If you want more information on random number generation - take a look at our [Random Number Generation docs](./random_generation_traits.md).
 
 Now, what if we just want a name?
 In that case, we can adjust the string generation line from:
