@@ -119,60 +119,72 @@ impl Grammar<String, String, String> for TraceryGrammar {
         let mut has_replacements = false;
         let mut has_meta = false;
         let mut inside = false;
-        let result = stream.split('[').flat_map(|v| {
-            println!("Checking for meta in {v}");
-            if inside {
-                has_meta = true;
-                let mut result = vec![];
-                let mut split = v.split(']');
-                if let Some(inner) = split.next() {
-                    let mut split = inner.split_inclusive(&[':', '|']);
-                    if let (Some(key), Some(value)) = (split.next(), split.next()) {
-                        if key.ends_with(':') {
-                            result.push(MetaRuleProcessingResult::ImmediateMeta(&key[0..key.len() - 1], value));
+        let result = stream
+            .split('[')
+            .flat_map(|v| {
+                println!("Checking for meta in {v}");
+                if inside {
+                    has_meta = true;
+                    let mut result = vec![];
+                    let mut split = v.split(']');
+                    if let Some(inner) = split.next() {
+                        let mut split = inner.split_inclusive(&[':', '|']);
+                        if let (Some(key), Some(value)) = (split.next(), split.next()) {
+                            if key.ends_with(':') {
+                                result.push(MetaRuleProcessingResult::ImmediateMeta(
+                                    &key[0..key.len() - 1],
+                                    value,
+                                ));
+                            } else {
+                                result.push(MetaRuleProcessingResult::DelayedMeta(
+                                    &key[0..key.len() - 1],
+                                    value,
+                                ));
+                            }
                         } else {
-                            result.push(MetaRuleProcessingResult::DelayedMeta(&key[0..key.len() - 1], value));
+                            result.push(MetaRuleProcessingResult::Raw(inner));
                         }
                     } else {
-                        result.push(MetaRuleProcessingResult::Raw(inner));
+                        result.push(MetaRuleProcessingResult::Raw(v));
                     }
+                    for v in split {
+                        result.push(MetaRuleProcessingResult::Raw(v))
+                    }
+                    result
                 } else {
-                    result.push(MetaRuleProcessingResult::Raw(v));
+                    println!("Marked as raw");
+                    inside = true;
+                    vec![MetaRuleProcessingResult::Raw(v)]
                 }
-                while let Some(v) = split.next() {
-                    result.push(MetaRuleProcessingResult::Raw(v))
-                }
-                result
-            } else {
-                println!("Marked as raw");
-                inside = true;
-                vec![MetaRuleProcessingResult::Raw(v)]
-            }
-        })
-        .flat_map(|v| {
-            match v {
+            })
+            .flat_map(|v| match v {
                 MetaRuleProcessingResult::Raw(v) => {
                     println!("Checking raw: {v}");
                     let mut ready = true;
                     v.split('#')
-                    .filter_map(|v| {
-                        if ready {
-                            ready = false;
-                            if v.is_empty() {
-                                return None;
+                        .filter_map(|v| {
+                            if ready {
+                                ready = false;
+                                if v.is_empty() {
+                                    return None;
+                                }
+                                Some(Replacable::Ready(v.to_string()))
+                            } else {
+                                ready = true;
+                                has_replacements = true;
+                                Some(Replacable::Replace(v.to_string()))
                             }
-                            Some(Replacable::Ready(v.to_string()))
-                        } else {
-                            ready = true;
-                            has_replacements = true;
-                            Some(Replacable::Replace(v.to_string()))
-                        }
-                    }).collect::<Vec<_>>()
-                },
-                MetaRuleProcessingResult::ImmediateMeta(key, val) => vec![Replacable::ImmediateMeta(key.to_string(), val.to_string())],
-                MetaRuleProcessingResult::DelayedMeta(key, val) => vec![Replacable::DelayedMeta(key.to_string(), val.to_string())],
-            }
-        }).collect::<Vec<_>>();
+                        })
+                        .collect::<Vec<_>>()
+                }
+                MetaRuleProcessingResult::ImmediateMeta(key, val) => {
+                    vec![Replacable::ImmediateMeta(key.to_string(), val.to_string())]
+                }
+                MetaRuleProcessingResult::DelayedMeta(key, val) => {
+                    vec![Replacable::DelayedMeta(key.to_string(), val.to_string())]
+                }
+            })
+            .collect::<Vec<_>>();
 
         (!has_replacements && !has_meta, result)
     }
@@ -274,12 +286,10 @@ impl StatefulGenerator<String, String, String, TraceryGrammar> for StatefulStrin
     fn expand_from<R: GrammarRandomNumberGenerator>(
         &mut self,
         initial: &String,
-        mut rng: &mut R,
+        rng: &mut R,
     ) -> String {
         let mut tmp = TraceryGrammar::empty();
-        let result = self
-            .get_grammar()
-            .process_stream(initial, rng, &mut tmp);
+        let result = self.get_grammar().process_stream(initial, rng, &mut tmp);
         self.get_grammar_mut().copy_and_replace_rules(&tmp);
         result
     }
@@ -295,49 +305,6 @@ impl StatefulGenerator<String, String, String, TraceryGrammar> for StatefulStrin
     fn get_grammar_mut(&mut self) -> &mut TraceryGrammar {
         &mut self.0
     }
-
-    // fn grab_rules_from_result<R: GrammarRandomNumberGenerator>(
-    //     &mut self,
-    //     result: &String,
-    //     _rng: &mut R,
-    // ) -> (
-    //     String,
-    //     Vec<(String, MetaRuleProcessingResult<String, String>)>,
-    // ) {
-    //     let mut new_rules = vec![];
-    //     let mut inside = false;
-    //     let result = result
-    //         .split('[')
-    //         .filter_map(|v| {
-    //             if inside {
-    //                 let mut split = v.split(']');
-    //                 if let Some(inner) = split.next() {
-    //                     let mut split = inner.split_inclusive(&[':', '|']);
-    //                     if let (Some(key), Some(value)) = (split.next(), split.next()) {
-    //                         if key.ends_with(':') {
-    //                             new_rules.push((
-    //                                 key[0..key.len() - 1].to_string(),
-    //                                 MetaRuleProcessingResult::ImmediateMeta(value.to_string()),
-    //                             ));
-    //                         } else {
-    //                             new_rules.push((
-    //                                 key[0..key.len() - 1].to_string(),
-    //                                 MetaRuleProcessingResult::DelayedMeta(value.to_string()),
-    //                             ));
-    //                         }
-    //                     }
-    //                 } else {
-    //                     return None;
-    //                 }
-    //                 Some(split.fold("".to_string(), |a, b| format!("{a}{b}")))
-    //             } else {
-    //                 inside = true;
-    //                 Some(v.to_string())
-    //             }
-    //         })
-    //         .fold("".to_string(), |a, b| format!("{a}{b}"));
-    //     (result, new_rules)
-    // }
 }
 
 #[cfg(test)]

@@ -1,6 +1,4 @@
-use std::{fmt::Debug, collections::VecDeque};
-
-use bevy::prelude::Res;
+use std::fmt::Debug;
 
 #[derive(Clone, PartialEq, Debug)]
 /// This defines a portion of a token stream that may be replaced using a rule, or might already be ready
@@ -12,7 +10,7 @@ pub enum Replacable<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + 
     /// The value is a meta rule for immediate processing
     ImmediateMeta(RuleKeyType, ResultType),
     /// The value is a meta rule for delayed processing - basically aliasing the rule
-    DelayedMeta(RuleKeyType, ResultType)
+    DelayedMeta(RuleKeyType, ResultType),
 }
 
 /// This sets the direction of processing for the grammar
@@ -23,7 +21,7 @@ pub enum GrammarProcessingDirection {
     BreadthFirst,
     /// Depth first means it goes in sequence through the stream, and each time it is able to make a replacement it replaces it as far as it can go.
     /// This will not evolve, and cannot detect new emergent patterns in a stream, but can be very effective for specific contexts like text generation.
-    DepthFirst
+    DepthFirst,
 }
 
 impl Default for GrammarProcessingDirection {
@@ -39,7 +37,7 @@ pub trait GrammarRandomNumberGenerator {
     fn get_number(&mut self, len: usize) -> usize;
 }
 
-impl<T:FnMut(usize) -> usize>  GrammarRandomNumberGenerator for T {
+impl<T: FnMut(usize) -> usize> GrammarRandomNumberGenerator for T {
     fn get_number(&mut self, len: usize) -> usize {
         if len == 0 {
             return 0;
@@ -50,12 +48,17 @@ impl<T:FnMut(usize) -> usize>  GrammarRandomNumberGenerator for T {
 
 impl GrammarRandomNumberGenerator for usize {
     fn get_number(&mut self, _: usize) -> usize {
-        self.clone()
+        *self
     }
 }
 
 /// This trait defines an interface for a grammar
-pub trait Grammar<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + PartialEq + Debug, StreamType: Clone + PartialEq + Debug> {
+pub trait Grammar<
+    RuleKeyType: Clone + PartialEq + Debug,
+    ResultType: Clone + PartialEq + Debug,
+    StreamType: Clone + PartialEq + Debug,
+>
+{
     /// Gets a Vec of all the possible rule keys - can be used to see if any match
     fn rule_keys(&self) -> &Vec<RuleKeyType>;
     /// Checks if a given rule key is available
@@ -84,7 +87,7 @@ pub trait Grammar<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + Pa
             let max = len.checked_sub(1).unwrap_or_default();
             let rng = rng.get_number(len);
             let index = max.min(rng);
-            println!("Selecting from - len: {}, max id: {}, rng: {}, selected: {}",len, max, rng, index);
+            println!("Selecting from - len: {len}, max id: {max}, rng: {rng}, selected: {index}");
             options.get(index)
         } else {
             None
@@ -103,7 +106,6 @@ pub trait Grammar<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + Pa
     /// determines if the grammar should be processed breadth-first or depth-first
     fn processing_direction(&self) -> GrammarProcessingDirection;
 
-    
     /// This is a function for setting a new rule. The expectation is that it overrides the original.
     fn set_additional_rules(&mut self, rule: RuleKeyType, values: &[ResultType]);
 
@@ -129,29 +131,39 @@ pub trait Grammar<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + Pa
         &self,
         stream: &StreamType,
         rng: &mut R,
-        temporary_grammar: &mut Self
+        temporary_grammar: &mut Self,
     ) -> StreamType {
-        println!("Applying Token Stream to {:?}", stream);
+        println!("Applying Token Stream to {stream:?}");
 
         match self.processing_direction() {
             GrammarProcessingDirection::BreadthFirst => {
                 self.breadth_first_processing(stream, temporary_grammar, rng)
-            },
-            GrammarProcessingDirection::DepthFirst => todo!(),
+            }
+            GrammarProcessingDirection::DepthFirst => {
+                todo!()
+            }
         }
     }
 
-    /// Processes a stream breadth first, regardless of the settings of the grammar 
-    fn breadth_first_processing<R: GrammarRandomNumberGenerator>(&self, stream: &StreamType, temporary_grammar: &mut Self, rng: &mut R) -> StreamType {
+    /// Processes a stream breadth first, regardless of the settings of the grammar
+    fn breadth_first_processing<R: GrammarRandomNumberGenerator>(
+        &self,
+        stream: &StreamType,
+        temporary_grammar: &mut Self,
+        rng: &mut R,
+    ) -> StreamType {
         println!("Breadth First");
-        let MAX_DEPTH = self.max_depth();
+        let max_depth = self.max_depth();
         let (skippable, initial) = self.check_token_stream(stream);
         if skippable {
             println!("Fully skippable");
             return stream.clone();
         }
 
-        let mut queue: Vec<(Option<RuleKeyType>, Vec<Replacable<RuleKeyType, ResultType>>)> = vec![(None, initial)];
+        let mut queue: Vec<(
+            Option<RuleKeyType>,
+            Vec<Replacable<RuleKeyType, ResultType>>,
+        )> = vec![(None, initial)];
         let mut append_to_queue = vec![];
         let mut depth = 0;
         let mut result = stream.clone();
@@ -159,51 +171,53 @@ pub trait Grammar<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + Pa
         while let Some((target, current)) = queue.pop() {
             println!("**** ITERATION *****");
             println!("Target: {:?}\nInput:\n{:?}", &target, &current);
-            let next = current.into_iter().filter_map(|token| {
-               let result = match token {
-                    Replacable::Ready(v) => Some(v),
-                    Replacable::Replace(key) => {
-                        if let Some(result) = temporary_grammar.select_from_rule(&key, rng) {
-                            Some(result.clone())
-                        } else if let Some(result) = self.select_from_rule(&key, rng) {
-                            Some(result.clone())
-                        } else {
-                            Some(self.rule_to_default_result(&key))
+            let next = current
+                .into_iter()
+                .filter_map(|token| {
+                    let result = match token {
+                        Replacable::Ready(v) => Some(v),
+                        Replacable::Replace(key) => {
+                            if let Some(result) = temporary_grammar.select_from_rule(&key, rng) {
+                                Some(result.clone())
+                            } else if let Some(result) = self.select_from_rule(&key, rng) {
+                                Some(result.clone())
+                            } else {
+                                Some(self.rule_to_default_result(&key))
+                            }
                         }
-                    },
-                    Replacable::ImmediateMeta(key, value) => {
-                        let stream = self.result_to_stream(&[value.clone()]);
-                        let (skippable, replaceables) = self.check_token_stream(&stream);
-                        if skippable {
+                        Replacable::ImmediateMeta(key, value) => {
+                            let stream = self.result_to_stream(&[value.clone()]);
+                            let (skippable, replaceables) = self.check_token_stream(&stream);
+                            if skippable {
+                                temporary_grammar.set_additional_rules(key, &[value]);
+                            } else {
+                                append_to_queue.push((Some(key), replaceables));
+                            }
+                            None
+                        }
+                        Replacable::DelayedMeta(key, value) => {
                             temporary_grammar.set_additional_rules(key, &[value]);
-                        } else {
-                            append_to_queue.push((Some(key), replaceables));
+                            None
                         }
-                        None
-                    },
-                    Replacable::DelayedMeta(key, value) => {
-                        temporary_grammar.set_additional_rules(key, &[value]);
-                        None
-                    },
-                };
-                result
-            }).collect::<Vec<_>>();
-    
+                    };
+                    result
+                })
+                .collect::<Vec<_>>();
+
             println!("Result:\n{:?}", &next);
-    
+
             let next = self.result_to_stream(&next);
-    
+
             println!("Stream:\n{:?}", &next);
-    
+
             if let Some(target) = &target {
                 println!("got a target");
                 if let Some(tmp) = &tmp_result {
-                
                     println!("and a temp result");
                     if tmp == &next {
-                    
-                println!("they match");
-                        temporary_grammar.set_additional_rules(target.clone(), &self.stream_to_result(&next));
+                        println!("they match");
+                        temporary_grammar
+                            .set_additional_rules(target.clone(), &self.stream_to_result(&next));
                         tmp_result = None;
                         continue;
                     }
@@ -217,19 +231,19 @@ pub trait Grammar<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + Pa
                 println!("no target, keep going...");
                 result = next.clone();
             }
-    
-            
+
             depth += 1;
-            if depth >= MAX_DEPTH {
+            if depth >= max_depth {
                 break;
             }
-        
-            println!("Checking next stream:\n{:?}", next);
+
+            println!("Checking next stream:\n{next:?}");
             let (skippable, next) = self.check_token_stream(&next);
-            println!("Setting up for next stream:\nis skippable: {skippable}\n{:?}", next);
+            println!("Setting up for next stream:\nis skippable: {skippable}\n{next:?}");
             if skippable {
                 if let (Some(target), Some(tmp)) = (&target, tmp_result) {
-                    temporary_grammar.set_additional_rules(target.clone(), &self.stream_to_result(&tmp));
+                    temporary_grammar
+                        .set_additional_rules(target.clone(), &self.stream_to_result(&tmp));
                     tmp_result = None;
                     continue;
                 } else {
@@ -241,21 +255,72 @@ pub trait Grammar<RuleKeyType: Clone + PartialEq + Debug, ResultType: Clone + Pa
         }
         result
     }
-    
-}
 
+    // /// Processes a stream depth first, regardless of the settings of the grammar
+    // fn depth_first_processing<R: GrammarRandomNumberGenerator>(&self, stream: &StreamType, temporary_grammar: &mut Self, rng: &mut R) -> StreamType {
+    //     println!("Depth First");
+    //     let MAX_DEPTH = self.max_depth();
+    //     let (skippable, initial) = self.check_token_stream(stream);
+    //     if skippable {
+    //         println!("Fully skippable");
+    //         return stream.clone();
+    //     }
+
+    //     let mut queue: Vec<(Option<RuleKeyType>, Vec<Replacable<RuleKeyType, ResultType>>)> = vec![(None, initial)];
+    //     let mut results: Vec<(usize, Vec<ResultType>)> = vec![(0, vec![])];
+    //     let mut result = stream.clone();
+    //     while let Some(stream) = queue.last() {
+    //         let target = &stream.0;
+    //         let current = &stream.1;
+    //         let index = stream.2;
+    //         let mut next_index = index;
+
+    //         if let Some(item) = current.get(index) {
+    //             match item {
+    //                 Replacable::Ready(value) => {
+    //                     next_index += 1;
+    //                     stream.3.push(value.clone());
+    //                 },
+    //                 Replacable::Replace(key) => {
+    //                     let result = if let Some(result) = temporary_grammar.select_from_rule(&key, rng) {
+    //                         result.clone()
+    //                     } else if let Some(result) = self.select_from_rule(&key, rng) {
+    //                         result.clone()
+    //                     } else {
+    //                         self.rule_to_default_result(&key)
+    //                     };
+    //                     let result = self.result_to_stream(&[result]);
+    //                     let (_, next) = self.check_token_stream(&result);
+    //                     queue.push((None, next, 0, vec![]));
+    //                 },
+    //                 Replacable::ImmediateMeta(key, result) => {
+    //                     let result = self.result_to_stream(&[result.clone()]);
+    //                     let (_, next) = self.check_token_stream(&result);
+    //                     queue.push((Some(key.clone()), next, 0, vec![]));
+    //                 },
+    //                 Replacable::DelayedMeta(key, value) => {
+    //                     temporary_grammar.set_additional_rules(key.clone(), &[value.clone()]);
+    //                 },
+    //             }
+    //         }
+    //     }
+    //     result
+    // }
+}
 
 /// This trait represents a stateless generator. You pass the grammar & rng in, and it can provide the resulting stream.
 pub trait Generator<
     RuleKeyType: Clone + PartialEq + Debug,
     GrammarResultType: Clone + PartialEq + Debug,
-    StreamType: Clone+ PartialEq + Debug,
+    StreamType: Clone + PartialEq + Debug,
     GrammarType: Grammar<RuleKeyType, GrammarResultType, StreamType>,
 >
 {
     /// This function generates a new value of `StreamType`, starting from the grammar's default rule
-    fn generate<R: GrammarRandomNumberGenerator>(grammar: &GrammarType, rng: &mut R)
-        -> Option<StreamType>;
+    fn generate<R: GrammarRandomNumberGenerator>(
+        grammar: &GrammarType,
+        rng: &mut R,
+    ) -> Option<StreamType>;
 
     /// This function generates a new value of `StreamType`, starting from a provided rule key
     fn generate_at<R: GrammarRandomNumberGenerator>(
