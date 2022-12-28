@@ -332,13 +332,13 @@ mod tests {
         let rule = TraceryGrammar::new(
             &[
                 ("default", &["One", "#Two#"]),
-                ("Two", &["Three", "#Four#"]),
+                ("Two", &["Three", "#Four# is up"]),
                 ("Four", &["What"]),
             ],
             Some("default"),
         );
         let selection = StringGenerator::generate(&rule, &mut 1);
-        assert_eq!(selection.unwrap(), "What");
+        assert_eq!(selection.unwrap(), "What is up");
     }
 
     #[test]
@@ -414,15 +414,15 @@ mod tests {
                 ("default", &["One", "#set#Hi #val#"]),
                 ("set", &["[val:#Two#]"]),
                 ("set_2", &["[val:#Five#]"]),
-                ("Two", &["Three", "#Four#"]),
-                ("Four", &["What is going on?"]),
+                ("Two", &["Three", "#Four# here"]),
+                ("Four", &["What is going on"]),
                 ("Five", &["Hey there"]),
             ],
             Some("default"),
         );
         let mut stateful_string_generator = StatefulStringGenerator(rule);
         let selection = stateful_string_generator.generate(&mut 1);
-        assert_eq!(selection.unwrap(), "Hi What is going on?");
+        assert_eq!(selection.unwrap(), "Hi What is going on here");
         let selection =
             stateful_string_generator.expand_from(&"#set_2#Oh #val#".to_string(), &mut 1);
         assert_eq!(selection, "Oh Hey there");

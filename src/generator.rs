@@ -96,7 +96,7 @@ pub trait Grammar<
     /// Converts a rule key to a default result, in case no matching rule is found in the grammar.
     fn rule_to_default_result(&self, rule: &RuleKeyType) -> ResultType;
 
-    /// Converts a group result types to a stream type
+    /// Converts a group of result types to a stream type
     fn result_to_stream(&self, result: &[ResultType]) -> StreamType;
 
     /// Converts a stream to a vec of result type
@@ -296,7 +296,8 @@ pub trait Grammar<
                         self.rule_to_default_result(&key)
                     };
                     let result = self.result_to_stream(&[result]);
-                    let (_, next) = self.check_token_stream(&result);
+                    let (_,mut next) = self.check_token_stream(&result);
+                    next.reverse();
                     for item in next.into_iter() {
                         queue.push((target.clone(), item));
                     }
@@ -304,7 +305,8 @@ pub trait Grammar<
                 Replacable::ImmediateMeta(key, result) => {
                     let result = self.result_to_stream(&[result.clone()]);
                     create_new_result_stream = Some(key.clone());
-                    let (_, next) = self.check_token_stream(&result);
+                    let (_, mut next) = self.check_token_stream(&result);
+                    next.reverse();
                     for item in next.into_iter() {
                         queue.push((Some(key.clone()), item));
                     }
@@ -359,7 +361,7 @@ pub trait Generator<
     ) -> StreamType;
 }
 
-/// This enum helps handling comples meta-commands within a stream.
+/// This enum helps handling complex meta-commands within a stream.
 pub enum MetaRuleProcessingResult<RuleKey, GrammarResultType, StreamType> {
     /// This is just content
     Raw(StreamType),
