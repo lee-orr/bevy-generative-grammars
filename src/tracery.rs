@@ -65,6 +65,15 @@ mod deserialize {
 }
 
 impl TraceryGrammar {
+    /// This provides an empty tracery grammar.
+    /// Mostly used for handling stateless generators.
+    pub fn empty() -> Self {
+        Self {
+            rules: Default::default(),
+            keys: vec![],
+            starting_point: "origin".to_string(),
+        }
+    }
     /// This provides a new tracery grammar.
     /// You provide a set of rules as `(Key, &[Values])` and optionally a starting point.
     /// If no starting point is provided, we fall back on "origin"
@@ -89,7 +98,7 @@ impl TraceryGrammar {
     }
 }
 
-impl Grammar<String, String> for TraceryGrammar {
+impl Grammar<String, String, String> for TraceryGrammar {
     fn rule_keys(&self) -> &Vec<String> {
         &self.keys
     }
@@ -106,51 +115,111 @@ impl Grammar<String, String> for TraceryGrammar {
         self.rules.get(rule)
     }
 
-    fn check_token_stream(&self, stream: &[&String]) -> (bool, Vec<Replacable<String, String>>) {
-        let mut ready = true;
+    fn check_token_stream(&self, stream: &String) -> (bool, Vec<Replacable<String, String>>) {
         let mut has_replacements = false;
+        let mut has_meta = false;
+        let mut inside = false;
         let result = stream
-            .iter()
-            .map(|v| v.to_string())
-            .fold("".to_string(), |s, v| format!("{s}{v}"))
-            .split('#')
-            .map(|v| {
-                if ready {
-                    ready = false;
-                    Replacable::Ready(v.to_string())
+            .split('[')
+            .flat_map(|v| {
+                if inside {
+                    has_meta = true;
+                    let mut result = vec![];
+                    let mut split = v.split(']');
+                    if let Some(inner) = split.next() {
+                        let mut split = inner.split_inclusive(&[':', '|']);
+                        if let (Some(key), Some(value)) = (split.next(), split.next()) {
+                            if key.ends_with(':') {
+                                result.push(MetaRuleProcessingResult::ImmediateMeta(
+                                    &key[0..key.len() - 1],
+                                    value,
+                                ));
+                            } else {
+                                result.push(MetaRuleProcessingResult::DelayedMeta(
+                                    &key[0..key.len() - 1],
+                                    value,
+                                ));
+                            }
+                        } else {
+                            result.push(MetaRuleProcessingResult::Raw(inner));
+                        }
+                    } else {
+                        result.push(MetaRuleProcessingResult::Raw(v));
+                    }
+                    for v in split {
+                        result.push(MetaRuleProcessingResult::Raw(v))
+                    }
+                    result
                 } else {
-                    ready = true;
-                    has_replacements = true;
-                    Replacable::Replace(v.to_string())
+                    inside = true;
+                    vec![MetaRuleProcessingResult::Raw(v)]
                 }
             })
-            .collect();
-        (has_replacements, result)
+            .flat_map(|v| match v {
+                MetaRuleProcessingResult::Raw(v) => {
+                    let mut ready = true;
+                    v.split('#')
+                        .filter_map(|v| {
+                            if ready {
+                                ready = false;
+                                if v.is_empty() {
+                                    return None;
+                                }
+                                Some(Replacable::Ready(v.to_string()))
+                            } else {
+                                ready = true;
+                                has_replacements = true;
+                                Some(Replacable::Replace(v.to_string()))
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }
+                MetaRuleProcessingResult::ImmediateMeta(key, val) => {
+                    vec![Replacable::ImmediateMeta(key.to_string(), val.to_string())]
+                }
+                MetaRuleProcessingResult::DelayedMeta(key, val) => {
+                    vec![Replacable::DelayedMeta(key.to_string(), val.to_string())]
+                }
+            })
+            .collect::<Vec<_>>();
+
+        (!has_replacements && !has_meta, result)
     }
 
     fn rule_to_default_result(&self, rule: &String) -> String {
         format!("#{rule}#")
     }
-}
 
-impl StatefulGrammar<String, String> for TraceryGrammar {
+    fn processing_direction(&self) -> GrammarProcessingDirection {
+        GrammarProcessingDirection::DepthFirst
+    }
+
+    fn result_to_stream(&self, result: &[String]) -> String {
+        result.join("")
+    }
+
     fn set_additional_rules(&mut self, rule: String, values: &[String]) {
         self.keys.push(rule.clone());
         self.rules.insert(rule, values.into());
+    }
+
+    fn stream_to_result(&self, stream: &String) -> Vec<String> {
+        vec![stream.clone()]
     }
 }
 
 /// This is a stateless string generator based on the tracery grammar. Note that, since it's stateless, it does not support variables.
 pub struct StringGenerator;
 
-const MAX_DEPTH: usize = 50usize;
-
-impl Generator<String, String, TraceryGrammar, String> for StringGenerator {
-    fn generate<R: FnMut(usize) -> usize>(grammar: &TraceryGrammar, rng: &mut R) -> Option<String> {
+impl Generator<String, String, String, TraceryGrammar> for StringGenerator {
+    fn generate<R: GrammarRandomNumberGenerator>(
+        grammar: &TraceryGrammar,
+        rng: &mut R,
+    ) -> Option<String> {
         Self::generate_at(&grammar.default_starting_point().clone(), grammar, rng)
     }
 
-    fn generate_at<R: FnMut(usize) -> usize>(
+    fn generate_at<R: GrammarRandomNumberGenerator>(
         key: &String,
         grammar: &TraceryGrammar,
         rng: &mut R,
@@ -159,38 +228,13 @@ impl Generator<String, String, TraceryGrammar, String> for StringGenerator {
         initial.map(|initial| Self::expand_from(initial, grammar, rng))
     }
 
-    fn expand_from<R: FnMut(usize) -> usize>(
+    fn expand_from<R: GrammarRandomNumberGenerator>(
         initial: &String,
         grammar: &TraceryGrammar,
         rng: &mut R,
     ) -> String {
-        let mut queue = vec![initial.clone()];
-        let mut depth = 0;
-        let mut result = initial.clone();
-        while let Some(mut current) = queue.pop() {
-            let ready = match grammar.apply_token_stream(&[&current], rng) {
-                (true, results) => {
-                    current = results.join("");
-                    false
-                }
-                _ => true,
-            };
-
-            if result == current {
-                break;
-            }
-
-            if !ready {
-                queue.push(current.clone());
-            }
-            result = current;
-
-            depth += 1;
-            if depth >= MAX_DEPTH {
-                break;
-            }
-        }
-        result
+        let mut tmp = TraceryGrammar::empty();
+        grammar.process_stream(initial, rng, &mut tmp)
     }
 }
 
@@ -219,13 +263,13 @@ impl StatefulStringGenerator {
     }
 }
 
-impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStringGenerator {
-    fn generate<R: FnMut(usize) -> usize>(&mut self, rng: &mut R) -> Option<String> {
+impl StatefulGenerator<String, String, String, TraceryGrammar> for StatefulStringGenerator {
+    fn generate<R: GrammarRandomNumberGenerator>(&mut self, rng: &mut R) -> Option<String> {
         let key = self.get_grammar().default_starting_point().clone();
         self.generate_at(&key, rng)
     }
 
-    fn generate_at<R: FnMut(usize) -> usize>(
+    fn generate_at<R: GrammarRandomNumberGenerator>(
         &mut self,
         key: &String,
         rng: &mut R,
@@ -236,59 +280,14 @@ impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStrin
             .map(|initial| self.expand_from(&initial, rng))
     }
 
-    fn expand_from<R: FnMut(usize) -> usize>(
+    fn expand_from<R: GrammarRandomNumberGenerator>(
         &mut self,
         initial: &String,
-        mut rng: &mut R,
+        rng: &mut R,
     ) -> String {
-        let mut queue = vec![(None, initial.clone())];
-        let mut depth = 0;
-        let mut result = initial.clone();
-        while let Some((target, current)) = queue.pop() {
-            let (initial, rules_to_apply) = self.grab_rules_from_result(&current, &mut rng);
-
-            let mut next_result = initial.clone();
-
-            if !rules_to_apply.is_empty() {
-                queue.push((target, next_result.clone()));
-                for (rule_key, value) in rules_to_apply.iter() {
-                    match value {
-                        MetaRuleProcessingResult::ProcessImmediately(stream) => {
-                            queue.push((Some(rule_key.clone()), stream.clone()))
-                        }
-                        MetaRuleProcessingResult::ProcessWhenUsed(rule_value) => {
-                            self.0
-                                .set_additional_rules(rule_key.clone(), &[rule_value.to_string()]);
-                        }
-                    };
-                }
-                continue;
-            }
-
-            let mut ready = match self.get_grammar().apply_token_stream(&[&next_result], rng) {
-                (true, results) => {
-                    next_result = results.join("");
-                    false
-                }
-                _ => true,
-            };
-
-            if !ready && next_result == result {
-                ready = true;
-            }
-
-            if !ready {
-                queue.push((target, next_result.clone()));
-            } else if let Some(target) = target {
-                self.0.set_additional_rules(target, &[next_result.clone()]);
-            }
-            result = next_result;
-
-            depth += 1;
-            if depth >= MAX_DEPTH {
-                break;
-            }
-        }
+        let mut tmp = TraceryGrammar::empty();
+        let result = self.get_grammar().process_stream(initial, rng, &mut tmp);
+        self.get_grammar_mut().copy_and_replace_rules(&tmp);
         result
     }
 
@@ -303,49 +302,6 @@ impl StatefulGenerator<String, String, TraceryGrammar, String> for StatefulStrin
     fn get_grammar_mut(&mut self) -> &mut TraceryGrammar {
         &mut self.0
     }
-
-    fn grab_rules_from_result<R: FnMut(usize) -> usize>(
-        &mut self,
-        result: &String,
-        _rng: &mut R,
-    ) -> (
-        String,
-        Vec<(String, MetaRuleProcessingResult<String, String>)>,
-    ) {
-        let mut new_rules = vec![];
-        let mut inside = false;
-        let result = result
-            .split('[')
-            .filter_map(|v| {
-                if inside {
-                    let mut split = v.split(']');
-                    if let Some(inner) = split.next() {
-                        let mut split = inner.split_inclusive(&[':', '|']);
-                        if let (Some(key), Some(value)) = (split.next(), split.next()) {
-                            if key.ends_with(':') {
-                                new_rules.push((
-                                    key[0..key.len() - 1].to_string(),
-                                    MetaRuleProcessingResult::ProcessImmediately(value.to_string()),
-                                ));
-                            } else {
-                                new_rules.push((
-                                    key[0..key.len() - 1].to_string(),
-                                    MetaRuleProcessingResult::ProcessWhenUsed(value.to_string()),
-                                ));
-                            }
-                        }
-                    } else {
-                        return None;
-                    }
-                    Some(split.fold("".to_string(), |a, b| format!("{a}{b}")))
-                } else {
-                    inside = true;
-                    Some(v.to_string())
-                }
-            })
-            .fold("".to_string(), |a, b| format!("{a}{b}"));
-        (result, new_rules)
-    }
 }
 
 #[cfg(test)]
@@ -355,16 +311,10 @@ mod tests {
     #[test]
     pub fn can_choose_a_single_element_from_a_list() {
         let rule = TraceryGrammar::new(&[("default", &["One", "Two"])], Some("default"));
-        let mut select = 0;
-        let mut fun = |_| {
-            let result = select;
-            select += 1;
-            result
-        };
 
-        assert_eq!(StringGenerator::generate(&rule, &mut fun).unwrap(), "One");
-        assert_eq!(StringGenerator::generate(&rule, &mut fun).unwrap(), "Two");
-        assert_eq!(StringGenerator::generate(&rule, &mut fun).unwrap(), "Two");
+        assert_eq!(StringGenerator::generate(&rule, &mut 0).unwrap(), "One");
+        assert_eq!(StringGenerator::generate(&rule, &mut 1).unwrap(), "Two");
+        assert_eq!(StringGenerator::generate(&rule, &mut 2).unwrap(), "Two");
     }
 
     #[test]
@@ -373,7 +323,7 @@ mod tests {
             &[("default", &["One", "#Two#"]), ("Two", &["Three", "Four"])],
             Some("default"),
         );
-        let selection = StringGenerator::generate(&rule, &mut |_| 1);
+        let selection = StringGenerator::generate(&rule, &mut 1);
         assert_eq!(selection.unwrap(), "Four");
     }
 
@@ -387,25 +337,18 @@ mod tests {
             ],
             Some("default"),
         );
-        let selection = StringGenerator::generate(&rule, &mut |_| 1);
+        let selection = StringGenerator::generate(&rule, &mut 1);
         assert_eq!(selection.unwrap(), "What");
     }
 
     #[test]
     pub fn stateful_can_choose_a_single_element_from_a_list() {
         let rule = TraceryGrammar::new(&[("default", &["One", "Two"])], Some("default"));
-        let mut select = 0;
-        let mut fun = |_| {
-            let result = select;
-            select += 1;
-            result
-        };
-
         let mut generator = StatefulStringGenerator(rule);
 
-        assert_eq!(generator.generate(&mut fun).unwrap(), "One");
-        assert_eq!(generator.generate(&mut fun).unwrap(), "Two");
-        assert_eq!(generator.generate(&mut fun).unwrap(), "Two");
+        assert_eq!(generator.generate(&mut 0).unwrap(), "One");
+        assert_eq!(generator.generate(&mut 1).unwrap(), "Two");
+        assert_eq!(generator.generate(&mut 2).unwrap(), "Two");
     }
 
     #[test]
@@ -414,7 +357,7 @@ mod tests {
             &[("default", &["One", "#Two#"]), ("Two", &["Three", "Four"])],
             Some("default"),
         );
-        let selection = StatefulStringGenerator(rule).generate(&mut |_| 1);
+        let selection = StatefulStringGenerator(rule).generate(&mut 1);
         assert_eq!(selection.unwrap(), "Four");
     }
 
@@ -428,12 +371,28 @@ mod tests {
             ],
             Some("default"),
         );
-        let selection = StatefulStringGenerator(rule).generate(&mut |_| 1);
+        let selection = StatefulStringGenerator(rule).generate(&mut 1);
         assert_eq!(selection.unwrap(), "What");
     }
 
     #[test]
     pub fn stateful_generator_can_set_value_and_use_it_later() {
+        let rule = TraceryGrammar::new(
+            &[
+                ("default", &["One", "[val:#Two#]Hi #val#"]),
+                ("Two", &["Three", "#Four#"]),
+                ("Four", &["What is going on?"]),
+                ("Five", &["Hey there"]),
+            ],
+            Some("default"),
+        );
+        let mut stateful_string_generator = StatefulStringGenerator(rule);
+        let selection = stateful_string_generator.generate(&mut 1);
+        assert_eq!(selection.unwrap(), "Hi What is going on?");
+    }
+
+    #[test]
+    pub fn stateful_generator_can_set_value_at_depth_and_use_it_later() {
         let rule = TraceryGrammar::new(
             &[
                 ("default", &["One", "#set#Hi #val#"]),
@@ -443,8 +402,30 @@ mod tests {
             ],
             Some("default"),
         );
-        let selection = StatefulStringGenerator(rule).generate(&mut |_| 1);
+        let mut stateful_string_generator = StatefulStringGenerator(rule);
+        let selection = stateful_string_generator.generate(&mut 1);
         assert_eq!(selection.unwrap(), "Hi What is going on?");
+    }
+
+    #[test]
+    pub fn stateful_generator_can_reset_a_value_at_depth_and_use_the_new_value() {
+        let rule = TraceryGrammar::new(
+            &[
+                ("default", &["One", "#set#Hi #val#"]),
+                ("set", &["[val:#Two#]"]),
+                ("set_2", &["[val:#Five#]"]),
+                ("Two", &["Three", "#Four#"]),
+                ("Four", &["What is going on?"]),
+                ("Five", &["Hey there"]),
+            ],
+            Some("default"),
+        );
+        let mut stateful_string_generator = StatefulStringGenerator(rule);
+        let selection = stateful_string_generator.generate(&mut 1);
+        assert_eq!(selection.unwrap(), "Hi What is going on?");
+        let selection =
+            stateful_string_generator.expand_from(&"#set_2#Oh #val#".to_string(), &mut 1);
+        assert_eq!(selection, "Oh Hey there");
     }
 
     const RULES: &[(&str, &[&str])] = &[
@@ -485,17 +466,17 @@ mod tests {
     #[test]
     pub fn stateful_generator_works_with_complex_cases() {
         let mut generator = StatefulStringGenerator::new(RULES, None);
-        let selection = generator.generate(&mut |_| 1);
+        let selection = generator.generate(&mut 1);
         assert_eq!(
             selection.unwrap(),
             "many years ago there was a rabbit that found amountain."
         );
-        let next = generator.generate_at(&"next".to_string(), &mut |_| 1);
+        let next = generator.generate_at(&"next".to_string(), &mut 1);
         assert_eq!(
             next.unwrap(),
             "Our adventerous rabbit was ready to circle the mountain."
         );
-        let finally = generator.generate_at(&"finally".to_string(), &mut |_| 1);
+        let finally = generator.generate_at(&"finally".to_string(), &mut 1);
         assert_eq!(
             finally.unwrap(),
             "And so - after a challanging path - the lonely rabbit had proven their worth."
