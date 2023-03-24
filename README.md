@@ -14,6 +14,6 @@ To install, you currently need to specify the github repo in `Cargo.toml`:
 
 ```toml
 [dependencies]
-bevy = "0.9"
+bevy = "0.10"
 bevy-generative-grammars = { git = "https://github.com/lee-orr/bevy-generative-grammars", features = ["bevy"]}
 ```
