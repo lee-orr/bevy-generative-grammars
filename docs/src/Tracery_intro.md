@@ -1,6 +1,6 @@
 # Introduction to Tracery
 
-For a quick tutorial on Tracery, look at the  [Tracery interactive tutorial](http://www.crystalcodepalace.com/traceryTut.html).
+For a quick tutorial on Tracery, look at the [Tracery interactive tutorial](https://web.archive.org/web/20230307220020/http://www.crystalcodepalace.com/traceryTut.html) - courtesy of the wayback machine.
 
 Once you understand it, there are a few modifications to the basic syntax that apply in this project:
 
