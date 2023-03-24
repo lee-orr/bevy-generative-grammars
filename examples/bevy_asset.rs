@@ -19,7 +19,8 @@ fn terminal_runner(mut app: App) {
 fn main() {
     App::new()
         .set_runner(terminal_runner)
-        .add_plugin(CorePlugin::default())
+        .add_plugin(TaskPoolPlugin::default())
+        .add_plugin(TypeRegistrationPlugin::default())
         .add_plugin(AssetPlugin::default())
         .add_plugin(TraceryAssetPlugin::new().with_json(&["json"]))
         .add_startup_system(setup)

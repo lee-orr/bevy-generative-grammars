@@ -69,8 +69,8 @@ turborand = [
 ]
 
 [dependencies]
-bevy = { version = "0.9", default-features = false, optional = true }
-bevy_common_assets = { version = "0.4", optional = true }
+bevy = { version = "0.10", default-features = false, optional = true }
+bevy_common_assets = { version = "0.6", optional = true }
 serde = { version = "*", optional = true }
 rand = { version = "*", optional = true }
 bevy_turborand = { version = "*", optional = true }
@@ -84,7 +84,7 @@ bevy_turborand = { version = "*", optional = true }
 [dev-dependencies]
 criterion = "0.4"
 # We can use a different feature set of Bevy for our library vs our examples and tests
-bevy = { version = "0.9", default-features = false}
+bevy = { version = "0.10", default-features = false}
 
 
 [lib]
