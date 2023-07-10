@@ -18,7 +18,10 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "bevy", derive(Component, Resource))]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-#[cfg_attr(feature = "asset", derive(bevy::reflect::TypeUuid))]
+#[cfg_attr(
+    feature = "asset",
+    derive(bevy::reflect::TypeUuid, bevy::reflect::TypePath)
+)]
 #[cfg_attr(feature = "asset", uuid = "40183015-2c4e-44d0-91ea-8028d45af39d")]
 /// This is a grammar that handles rules provided in a tracery syntax.
 /// See - <https://github.com/galaxykate/tracery> for more info on Tracery.

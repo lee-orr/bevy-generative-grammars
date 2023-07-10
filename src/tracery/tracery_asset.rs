@@ -63,25 +63,25 @@ impl Plugin for TraceryAssetPlugin {
     fn build(&self, app: &mut App) {
         #[cfg(feature = "json")]
         if let Some(ext) = self.json {
-            app.add_plugin(bevy_common_assets::json::JsonAssetPlugin::<TraceryGrammar>::new(ext));
+            app.add_plugins(bevy_common_assets::json::JsonAssetPlugin::<TraceryGrammar>::new(ext));
         }
         #[cfg(feature = "ron")]
         if let Some(ext) = self.ron {
-            app.add_plugin(bevy_common_assets::ron::RonAssetPlugin::<TraceryGrammar>::new(ext));
+            app.add_plugins(bevy_common_assets::ron::RonAssetPlugin::<TraceryGrammar>::new(ext));
         }
         #[cfg(feature = "msgpack")]
         if let Some(ext) = self.msgpack {
-            app.add_plugin(bevy_common_assets::msgpack::MsgPackAssetPlugin::<
+            app.add_plugins(bevy_common_assets::msgpack::MsgPackAssetPlugin::<
                 TraceryGrammar,
             >::new(ext));
         }
         #[cfg(feature = "toml")]
         if let Some(ext) = self.toml {
-            app.add_plugin(bevy_common_assets::toml::TomlAssetPlugin::<TraceryGrammar>::new(ext));
+            app.add_plugins(bevy_common_assets::toml::TomlAssetPlugin::<TraceryGrammar>::new(ext));
         }
         #[cfg(feature = "yaml")]
         if let Some(ext) = self.yaml {
-            app.add_plugin(bevy_common_assets::yaml::YamlAssetPlugin::<TraceryGrammar>::new(ext));
+            app.add_plugins(bevy_common_assets::yaml::YamlAssetPlugin::<TraceryGrammar>::new(ext));
         }
     }
 }
