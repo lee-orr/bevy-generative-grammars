@@ -3,12 +3,14 @@ name = "bevy_generative_grammars"
 description = "A plugin for handling generative grammars in bevy"
 version = "0.0.0"
 authors = ["Lee-Orr"]
-homepage = "https://lee-orr.com"
+homepage = "https://lee-orr.github.io/bevy-generative-grammar"
 repository = "https://github.com/lee-orr/bevy-generative-grammars"
+documentation = "https://lee-orr.github.io/bevy-generative-grammars"
+readme = "README.md"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 categories = ["games", "game-development"]
-keywords = ["bevy"]
+keywords = ["bevy", "procedural", "generation", "tracery"]
 exclude = ["assets/**/*", "tools/**/*", ".github/**/*"]
 resolver = "2"
 
@@ -16,57 +18,27 @@ resolver = "2"
 members = ["./", "tools/ci"]
 
 [features]
-default = [
-    "json",
-]
+default = ["json"]
 
-bevy = [
-    "dep:bevy",
-]
+bevy = ["dep:bevy"]
 
-serde = [
-    "dep:serde"
-]
+serde = ["dep:serde"]
 
-asset = [
-    "bevy",
-    "serde",
-    "dep:bevy_common_assets"
-]
+asset = ["bevy", "serde", "dep:bevy_common_assets"]
 
-json = [
-    "asset",
-    "bevy_common_assets?/json"
-]
+json = ["asset", "bevy_common_assets?/json"]
 
-msgpack = [
-    "asset",
-    "bevy_common_assets?/msgpack"
-]
+msgpack = ["asset", "bevy_common_assets?/msgpack"]
 
-ron = [
-    "asset",
-    "bevy_common_assets?/ron"
-]
+ron = ["asset", "bevy_common_assets?/ron"]
 
-toml = [
-    "asset",
-    "bevy_common_assets?/toml"
-]
+toml = ["asset", "bevy_common_assets?/toml"]
 
-yaml = [
-    "asset",
-    "bevy_common_assets?/yaml"
-]
+yaml = ["asset", "bevy_common_assets?/yaml"]
 
-rand = [
-    "dep:rand"
-]
+rand = ["dep:rand"]
 
-turborand = [
-    "bevy",
-    "dep:bevy_turborand"
-]
+turborand = ["bevy", "dep:bevy_turborand"]
 
 [dependencies]
 bevy = { version = "0.11", default-features = false, optional = true }
@@ -84,7 +56,7 @@ bevy_turborand = { version = "*", optional = true }
 [dev-dependencies]
 criterion = "0.5"
 # We can use a different feature set of Bevy for our library vs our examples and tests
-bevy = { version = "0.11", default-features = false}
+bevy = { version = "0.11", default-features = false }
 
 
 [lib]
