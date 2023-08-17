@@ -43,9 +43,9 @@ turborand = ["bevy", "dep:bevy_turborand"]
 [dependencies]
 bevy = { version = "0.11", default-features = false, optional = true }
 bevy_common_assets = { version = "0.7", optional = true }
-serde = { version = "*", optional = true }
-rand = { version = "*", optional = true }
-bevy_turborand = { version = "*", optional = true }
+serde = { version = "1", optional = true }
+rand = { version = "0.8", optional = true }
+bevy_turborand = { version = "0.6", optional = true }
 
 [patch.crates-io]
 # We can override the bevy version with remote or local versions
