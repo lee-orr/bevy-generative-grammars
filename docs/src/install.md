@@ -1,10 +1,9 @@
 # Installation
 
-The package doesn't currently have a crates package, so you need to use the git repo to install.
-To do so, add the following to your dependencies in the `Cargo.toml`:
+To install, add the following to your dependencies in the `Cargo.toml`:
 
 ```toml
-bevy-generative-grammars = { git = "https://github.com/lee-orr/bevy-generative-grammars", features = ["bevy"]}
+bevy-generative-grammars = { version = "0.0.1", features = ["bevy"]}
 ```
 
 ## Available features
