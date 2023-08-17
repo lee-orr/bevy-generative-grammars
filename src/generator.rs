@@ -293,7 +293,6 @@ pub trait Grammar<
                 Replacable::Ready(value) => {
                     if let Some(stream) = results.last_mut() {
                         stream.1.push(value);
-                    } else {
                     }
                 }
                 Replacable::Replace(key) => {

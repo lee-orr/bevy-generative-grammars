@@ -57,8 +57,8 @@ fn main() {
     App::new()
         .set_runner(terminal_runner)
         .insert_resource(grammar)
-        .add_startup_system(setup)
-        .add_system(progress_story)
+        .add_systems(Startup, setup)
+        .add_systems(Update, progress_story)
         .run();
 }
 

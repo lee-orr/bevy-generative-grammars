@@ -19,13 +19,13 @@ fn terminal_runner(mut app: App) {
 fn main() {
     App::new()
         .set_runner(terminal_runner)
-        .add_plugin(TaskPoolPlugin::default())
-        .add_plugin(TypeRegistrationPlugin::default())
-        .add_plugin(AssetPlugin::default())
-        .add_plugin(TraceryAssetPlugin::new().with_json(&["json"]))
-        .add_startup_system(setup)
-        .add_system(loaded_grammar)
-        .add_system(progress_story)
+        .add_plugins(TaskPoolPlugin::default())
+        .add_plugins(TypeRegistrationPlugin)
+        .add_plugins(AssetPlugin::default())
+        .add_plugins(TraceryAssetPlugin::new().with_json(&["json"]))
+        .add_systems(Startup, setup)
+        .add_systems(Update, loaded_grammar)
+        .add_systems(Update, progress_story)
         .run();
 }
 
