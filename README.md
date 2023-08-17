@@ -10,8 +10,6 @@ For documentation - you can find [the Book](https://lee-orr.github.io/bevy-gener
 
 ## Installation
 
-To install, you currently need to specify the github repo in `Cargo.toml`:
-
 ```toml
 [dependencies]
 bevy = "0.11"
