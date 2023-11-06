@@ -3,7 +3,7 @@
 To install, add the following to your dependencies in the `Cargo.toml`:
 
 ```toml
-bevy-generative-grammars = { version = "0.0.1", features = ["bevy"]}
+bevy-generative-grammars = { version = "0.0.2", features = ["bevy"]}
 ```
 
 ## Available features

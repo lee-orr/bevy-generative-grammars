@@ -12,6 +12,6 @@ For documentation - you can find [the Book](https://lee-orr.github.io/bevy-gener
 
 ```toml
 [dependencies]
-bevy = "0.11"
-bevy-generative-grammars = { version = "0.0.1", features = ["bevy"]}
+bevy = "0.12"
+bevy-generative-grammars = { version = "0.0.2", features = ["bevy"]}
 ```
