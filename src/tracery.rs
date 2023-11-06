@@ -2,8 +2,6 @@
 /// This module provides an asset loader for tracery grammars, allowing them to be used as assets as well
 pub mod tracery_asset;
 
-#[cfg(feature = "serde")]
-pub use self::deserialize::*;
 use crate::generator::*;
 #[cfg(feature = "bevy")]
 use bevy::{
